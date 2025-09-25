@@ -4,10 +4,16 @@ spring:
   application:
     name: userservice
   datasource:
-    url: jdbc:postgresql://localhost:5432/fitness_user
+    url: jdbc:postgresql://localhost:5432/fitness_database
     username: postgres
     password: Irlocx10@
   jpa:
     hibernate:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com
+          issuer-uri: https://securetoken.google.com/fitness-app-b9035

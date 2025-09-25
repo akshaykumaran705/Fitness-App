@@ -1,19 +1,30 @@
 package com.fitness.activityservice.controller;
 
-import com.fitness.activityservice.dto.ActivityRequest;
-import com.fitness.activityservice.dto.ActivityResponse;
+import com.fitness.activityservice.dto.ActivityStatusResponse;
+import com.fitness.activityservice.dto.SensorDataRequest;
+import com.fitness.activityservice.dto.SensorDataResponse;
+import com.fitness.activityservice.service.HarService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/activities")
+@RequestMapping("/api/activities/")
 public class ActivityController {
-    private ActivityService activityService;
-    @PostMapping
-    public ResponseEntity<ActivityResponse> trackActivity(@RequestBody ActivityRequest){
-      return ResponseEntity.ok(activityService.trackActivity(request));
+//    private ActivityService activityService;
+    @Autowired
+    private HarService harService;
+////    @PostMapping
+////    public ResponseEntity<SensorDataResponse> trackActivity(@RequestBody SensorDataRequest){
+////      return ResponseEntity.ok(activityService.trackActivity(request));
+//    }
+    @PostMapping("/sensordata")
+    public ResponseEntity<Void> receiveSensorData(@RequestBody SensorDataRequest data){
+        harService.processIncomingData(data.getSensorReadings());
+        return ResponseEntity.accepted().build();
+    }
+    @GetMapping("/status")
+    public ResponseEntity<ActivityStatusResponse> getActivityStatus(){
+        return ResponseEntity.ok(harService.getLatestActivityStatus());
     }
 }
