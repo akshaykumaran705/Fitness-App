@@ -1,6 +1,8 @@
 import React, {useState} from "react";
 import {signInWithEmailAndPassword} from "firebase/auth";
 import {auth} from "./firebase";
+import Register from "./Register";
+import App from "./App";
 
 function Login(){
     const [email,setEmail] = useState('');
@@ -20,6 +22,10 @@ function Login(){
     return(
         <div style={{padding:'20px'}}>
             <h2>Login</h2>
+            <p>
+                Don't have an account?
+                <button onClick={App.onSwitchToRegister} className={"text-indigo-600 hover:underline"}>Register here</button>
+            </p>
             <form onSubmit={handleLogin}>
                 <input type={"email"} placeholder={"Email"} onChange={(e)=>setEmail(e.target.value)}/><br/><br/>
                 <input type={"password"} placeholder={"Password"} onChange={(e)=>setPassword(e.target.value)}/><br/><br/>
