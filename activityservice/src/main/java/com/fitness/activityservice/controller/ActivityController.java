@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/activities/")
+@CrossOrigin(origins = "http://localhost:3000/",methods = {RequestMethod.GET, RequestMethod.POST})
 public class ActivityController {
 //    private ActivityService activityService;
     @Autowired
@@ -23,7 +24,9 @@ public class ActivityController {
         harService.processIncomingData(data.getSensorReadings());
         return ResponseEntity.accepted().build();
     }
+
     @GetMapping("/status")
+
     public ResponseEntity<ActivityStatusResponse> getActivityStatus(){
         return ResponseEntity.ok(harService.getLatestActivityStatus());
     }

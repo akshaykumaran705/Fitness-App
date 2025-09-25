@@ -1,37 +1,55 @@
-import React, {useState} from "react";
-import {signInWithEmailAndPassword} from "firebase/auth";
-import {auth} from "./firebase";
-import Register from "./Register";
-import App from "./App";
+import React, { useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './firebase';
 
-function Login(){
-    const [email,setEmail] = useState('');
-    const [password,setPassword] = useState('');
-    const [msg,setMsg] = useState('');
+// Accept the onSwitchToRegister function as a prop
+function Login({ onSwitchToRegister }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
 
-    const handleLogin = async (e) =>{
+    const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
         try {
-            await signInWithEmailAndPassword(auth,email,password);
-            setMsg('Login Successful');
-        }
-        catch (error){
-            setMsg(error.message);
+            await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged in App.js will handle showing the dashboard
+        } catch (err) {
+            setError('Failed to sign in. Please check your credentials.');
+            console.error(err);
         }
     };
-    return(
-        <div style={{padding:'20px'}}>
-            <h2>Login</h2>
-            <p>
-                Don't have an account?
-                <button onClick={App.onSwitchToRegister} className={"text-indigo-600 hover:underline"}>Register here</button>
-            </p>
+
+    return (
+        <div className="card auth-form">
+            <h2>Sign in to your account</h2>
             <form onSubmit={handleLogin}>
-                <input type={"email"} placeholder={"Email"} onChange={(e)=>setEmail(e.target.value)}/><br/><br/>
-                <input type={"password"} placeholder={"Password"} onChange={(e)=>setPassword(e.target.value)}/><br/><br/>
-                <button type={"submit"}>Login</button>
+                {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+                <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email address"
+                    required
+                />
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                />
+                <button type="submit" className="button-primary">Sign in</button>
             </form>
+            <p>
+                Don't have an account?{' '}
+                <button onClick={onSwitchToRegister} className="form-switcher">
+                    Register here
+                </button>
+            </p>
         </div>
     );
 }
+
 export default Login;
+
