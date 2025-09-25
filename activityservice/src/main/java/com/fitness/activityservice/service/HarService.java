@@ -52,7 +52,7 @@ public class HarService {
         this.ragRecommendationService = ragRecommendationService;
     }
 
-    public void processIncomingData(List<SensorDataResponse> sensorReadings) {
+    public void processIncomingData(String userId, List<SensorDataResponse> sensorReadings) {
         dataBuffer.addAll(sensorReadings);
         synchronized (bufferLock) {
             while (dataBuffer.size() >= WINDOW_OVERLAP_SAMPLES) {
@@ -87,8 +87,8 @@ public class HarService {
         }
 
     }
-    public ActivityStatusResponse getLatestActivityStatus(){
-        return latestStatus.get() != null ? latestStatus.get(): createDefaultStatus();
+    public ActivityStatusResponse getLatestActivityStatus(String userId){
+        return latestStatus.getOrDefault(userId,getDefaultStatus());
     }
     private String predictActivity(float[] featureVector) {
         if(xgbModel == null){
