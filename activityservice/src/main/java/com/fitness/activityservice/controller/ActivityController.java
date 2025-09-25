@@ -7,10 +7,10 @@ import com.fitness.activityservice.service.HarService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.fitness.activityservice.config.ActivityServiceCorsConfig;
 @RestController
 @RequestMapping("/api/activities/")
-@CrossOrigin(origins = "http://localhost:3000/",methods = {RequestMethod.GET, RequestMethod.POST})
+//@CrossOrigin(origins = "http://localhost:3000",methods = {RequestMethod.GET, RequestMethod.OPTIONS})
 public class ActivityController {
 //    private ActivityService activityService;
     @Autowired
@@ -24,9 +24,7 @@ public class ActivityController {
         harService.processIncomingData(data.getSensorReadings());
         return ResponseEntity.accepted().build();
     }
-
     @GetMapping("/status")
-
     public ResponseEntity<ActivityStatusResponse> getActivityStatus(){
         return ResponseEntity.ok(harService.getLatestActivityStatus());
     }
