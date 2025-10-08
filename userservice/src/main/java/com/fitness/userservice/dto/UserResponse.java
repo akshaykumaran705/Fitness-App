@@ -10,6 +10,9 @@ public class UserResponse {
     private String password;
     private String firstName;
     private String lastName;
+    private Integer dailyStepsGoal;
+    private Integer dailyCaloriesGoal;
+    private Integer dailyDistanceGoal;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -22,6 +22,9 @@ public class User {
     private String password;
     private String firstName;
     private String lastName;
+    private Integer dailyStepGoals;
+    private Integer dailyCaloriesGoal;
+    private Integer dailyDistanceGoal;
     @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;
     @CreationTimestamp

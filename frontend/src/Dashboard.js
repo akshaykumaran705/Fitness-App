@@ -13,12 +13,13 @@ function Dashboard({ user }) {
         const fetchActivityStatus = async () => {
             if (!user) return;
             try {
+                const token = await user.getIdToken();
                 // CORRECTED SYNTAX: The options object is the second argument INSIDE fetch()
-                const response = await fetch('http://localhost:8082/api/activities/status');
+                const response = await fetch('http://localhost:8082/api/activities/status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-                if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
                 const data = await response.json();
                 setActivityStatus(data);
