@@ -60,5 +60,4 @@ private ActivityService activityService;
     public ResponseEntity<List<WorkoutSession>> getWorkoutHistory(@PathVariable String userId){
         return ResponseEntity.ok(activityService.getWorkoutHistory(userId));
     }
-
 }

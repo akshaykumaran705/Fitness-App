@@ -1,7 +1,7 @@
 package com.fitness.activityservice.service;
 
 import com.fitness.activityservice.dto.ActivityStatusResponse;
-import com.fitness.activityservice.dto.SensorDataResponse; // CORRECT DTO for raw data
+import com.fitness.activityservice.dto.SensorDataResponse;
 import com.fitness.activityservice.model.Activity;
 import com.fitness.activityservice.model.ActivityType;
 import com.fitness.activityservice.repository.ActivityRepository;
@@ -13,8 +13,9 @@ import ml.dmlc.xgboost4j.java.XGBoostError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import jakarta.annotation.PostConstruct;
+
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,7 +28,6 @@ public class HarService {
 
     private static final Logger logger = LoggerFactory.getLogger(HarService.class);
 
-    // Use SensorDataPoint for raw data, not SensorDataResponse
     private final Map<String, Deque<SensorDataResponse>> userBuffers = new ConcurrentHashMap<>();
     private final Map<String, ActivityStatusResponse> latestStatusStore = new ConcurrentHashMap<>();
     private final Map<String, UserActivityState> userStates = new ConcurrentHashMap<>();
@@ -39,12 +39,11 @@ public class HarService {
 
     private final Object bufferLock = new Object();
 
-    // --- Windowing Constants ---
     private static final int SAMPLING_RATE_HZ = 50;
     private static final double WINDOW_SIZE_SECONDS = 2.56;
     private static final int WINDOW_SIZE_SAMPLES = (int) (SAMPLING_RATE_HZ * WINDOW_SIZE_SECONDS);
     private static final int WINDOW_OVERLAP_SAMPLES = WINDOW_SIZE_SAMPLES / 2;
-    private static final long MIN_DURATION_TO_SAVE_SECONDS = 1; // For easy testing
+    private static final long MIN_DURATION_TO_SAVE_SECONDS = 2; // Increased for better stability
 
     @Autowired
     public HarService(FeatureExtractionService featureExtractionService, RagRecommendationService ragRecommendationService, ActivityRepository activityRepository) {
@@ -65,7 +64,13 @@ public class HarService {
         }
     }
 
+    @Async
     public void processIncomingData(String userId, List<SensorDataResponse> sensorReadings) {
+        if (sensorReadings == null || sensorReadings.isEmpty()) {
+            logger.warn("Received empty sensor readings for user {}.", userId);
+            return;
+        }
+
         Deque<SensorDataResponse> userBuffer = userBuffers.computeIfAbsent(userId, k -> new ConcurrentLinkedDeque<>());
         userBuffer.addAll(sensorReadings);
 
@@ -81,14 +86,13 @@ public class HarService {
 
         float[] featureVector = featureExtractionService.extractFeatures(window);
         String predictedActivity = predictActivity(featureVector);
-        updateUserActivityState(userId, predictedActivity);
+
         logger.info("Predicted activity for user {}: {}", userId, predictedActivity);
+        updateUserActivityState(userId, predictedActivity);
 
         if (!predictedActivity.equals("UNKNOWN")) {
             String recommendation = ragRecommendationService.getRecommendation(predictedActivity);
             ActivityStatusResponse newStatus = new ActivityStatusResponse();
-            // Assuming your DTO has setUserId, add it if not present
-            // newStatus.setUserId(userId);
             newStatus.setLastDetectedActivity(predictedActivity);
             newStatus.setLatestRecommendation(recommendation);
             newStatus.setTimestamp(System.currentTimeMillis());
@@ -96,13 +100,12 @@ public class HarService {
         }
 
         for (int i = 0; i < WINDOW_OVERLAP_SAMPLES; i++) {
-            userBuffer.poll();
+            if (!userBuffer.isEmpty()) {
+                userBuffer.poll();
+            }
         }
     }
 
-    /**
-     * CORRECTED LOGIC: Saves the activity when the state changes.
-     */
     private void updateUserActivityState(String userId, String newActivity) {
         if (newActivity.equals("UNKNOWN")) return;
 
@@ -111,18 +114,21 @@ public class HarService {
             return new UserActivityState(newActivity);
         });
 
-        if (currentState.getCurrentActivity().equals(newActivity)) {
-            logger.info("Activity changed for user {}: from {} to {}", userId, currentState.getCurrentActivity(), newActivity);
+        // --- THE CRITICAL FIX IS HERE ---
+        // The "!" inverts the logic to correctly trigger on an activity CHANGE.
+        if (!currentState.getCurrentActivity().equals(newActivity)) {
+            logger.info("Activity CHANGED for user {}: from {} to {}", userId, currentState.getCurrentActivity(), newActivity);
 
             long durationSeconds = Duration.between(currentState.getStartTime(), LocalDateTime.now()).getSeconds();
 
             if (durationSeconds >= MIN_DURATION_TO_SAVE_SECONDS) {
-                logger.info("Duration ({}) is long enough. SAVING activity: {}", durationSeconds, currentState.getCurrentActivity());
+                logger.info("Duration ({}) is long enough. SAVING previous activity: {}", durationSeconds, currentState.getCurrentActivity());
                 saveActivity(userId, currentState.getCurrentActivity(), currentState.getStartTime(), durationSeconds);
             } else {
-                logger.warn("Duration ({}) was too short. Not saving activity: {}", durationSeconds, currentState.getCurrentActivity());
+                logger.warn("Duration ({}) was too short. Not saving previous activity: {}", durationSeconds, currentState.getCurrentActivity());
             }
 
+            // Reset the state to begin tracking the new activity.
             currentState.reset(newActivity);
         }
     }
@@ -151,7 +157,7 @@ public class HarService {
     private String predictActivity(float[] featureVector) {
         if (xgbModel == null) return "MODEL_NOT_LOADED";
         try {
-            DMatrix dMatrix = new DMatrix(featureVector, 1, featureVector.length);
+            DMatrix dMatrix = new DMatrix(featureVector, 1, 10); // Using 10 features
             float[][] prediction = xgbModel.predict(dMatrix);
             return mapPredictionToLabel(prediction[0][0]);
         } catch (XGBoostError e) { e.printStackTrace(); return "PREDICTION_ERROR"; }
@@ -170,8 +176,7 @@ public class HarService {
 
     private ActivityStatusResponse createDefaultStatus(String userId) {
         ActivityStatusResponse defaultStatus = new ActivityStatusResponse();
-        //defaultStatus.setUserId(userId);
-        defaultStatus.setLastDetectedActivity("Awaiting data");
+        defaultStatus.setLastDetectedActivity("UNKNOWN");
         defaultStatus.setLatestRecommendation("No recommendations yet. Start sending sensor data.");
         defaultStatus.setTimestamp(System.currentTimeMillis());
         return defaultStatus;
