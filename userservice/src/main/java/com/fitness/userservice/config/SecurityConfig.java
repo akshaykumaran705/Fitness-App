@@ -23,6 +23,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Assuming you want /register (part of /api/users) to be unsecured
                         .requestMatchers("/api/users/register", "/api/users/me/test").permitAll()
+                        .requestMatchers("/api/sensors/debug/**").permitAll()
                         .requestMatchers("/api/users/**").authenticated() // Secure all other /api/users paths
                         .anyRequest().permitAll()
                 )

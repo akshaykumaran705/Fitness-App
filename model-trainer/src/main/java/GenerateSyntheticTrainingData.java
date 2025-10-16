@@ -13,7 +13,7 @@ public class GenerateSyntheticTrainingData {
     private static final Random random = new Random(42);
 
     public static void main(String[] args) throws IOException {
-        String outputFile = "./dataset/synthetic_train.csv";
+        String outputFile = "/Users/akshaykumaran/Documents/project/SpringBoot/model-trainer/dataset/synthetic_train.csv";
 
         System.out.println("=================================================");
         System.out.println("Generating Synthetic Training Data");

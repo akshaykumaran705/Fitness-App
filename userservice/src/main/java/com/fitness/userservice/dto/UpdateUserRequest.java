@@ -5,8 +5,8 @@ import lombok.Data;
 
 @Data
 public class UpdateUserRequest {
-    private Integer firstName;
-    private Integer lastName;
+    private String firstName;
+    private String lastName;
     private Integer dailyStepsGoal;
     private Integer dailyCaloriesGoal;
     private Integer dailyDistanceGoal;

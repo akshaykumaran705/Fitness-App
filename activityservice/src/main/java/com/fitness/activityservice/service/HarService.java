@@ -155,12 +155,30 @@ public class HarService {
     }
 
     private String predictActivity(float[] featureVector) {
-        if (xgbModel == null) return "MODEL_NOT_LOADED";
+        if (xgbModel == null) {
+            logger.error("XGBoost model is not loaded!");
+            return "MODEL_NOT_LOADED";
+        }
+
+        // ADD THIS LINE - Critical debug info
+        logger.info("🔍 PREDICTING with features: {}", Arrays.toString(featureVector));
+
         try {
-            DMatrix dMatrix = new DMatrix(featureVector, 1, 10); // Using 10 features
+            DMatrix dMatrix = new DMatrix(featureVector, 1, featureVector.length);
             float[][] prediction = xgbModel.predict(dMatrix);
-            return mapPredictionToLabel(prediction[0][0]);
-        } catch (XGBoostError e) { e.printStackTrace(); return "PREDICTION_ERROR"; }
+            float rawPrediction = prediction[0][0];
+
+            // ADD THIS LINE
+            logger.info("🎯 Raw prediction: {}, Rounded: {}", rawPrediction, Math.round(rawPrediction));
+
+            String activityLabel = mapPredictionToLabel(rawPrediction);
+            logger.info("✅ Final label: {}", activityLabel);
+
+            return activityLabel;
+        } catch (XGBoostError e) {
+            logger.error("XGBoost prediction error", e);
+            return "PREDICTION_ERROR";
+        }
     }
 
     private String mapPredictionToLabel(float prediction) {

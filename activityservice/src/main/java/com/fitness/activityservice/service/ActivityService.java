@@ -1,6 +1,8 @@
 package com.fitness.activityservice.service;
 
+import com.fitness.activityservice.dto.ActivityResponse;
 import com.fitness.activityservice.dto.HeartRateReading;
+import com.fitness.activityservice.dto.PageResponse;
 import com.fitness.activityservice.dto.WorkoutSessionRequest;
 import com.fitness.activityservice.model.Activity;
 import com.fitness.activityservice.model.ActivityType;
@@ -12,10 +14,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import scala.Int;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ActivityService {
@@ -23,68 +25,114 @@ public class ActivityService {
     private final WorkoutSessionRepository workoutSessionRepository;
 
     @Autowired
-    public ActivityService(ActivityRepository activityRepository,WorkoutSessionRepository workoutSessionRepository) {
+    public ActivityService(ActivityRepository activityRepository, 
+                          WorkoutSessionRepository workoutSessionRepository) {
         this.activityRepository = activityRepository;
         this.workoutSessionRepository = workoutSessionRepository;
     }
-    public WorkoutSession saveWorkoutSession(String userId, WorkoutSessionRequest request){
-        int durationSeconds = (int) Duration.between(request.getStartTime(), request.getEndTime()).getSeconds();
+    
+    /**
+     * Get activity history with proper DTO response
+     */
+    public PageResponse<ActivityResponse> getActivityHistory(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Activity> activityPage = activityRepository
+            .findActivitiesByUserIdOrderByStartTimeDesc(userId, pageable);
+        
+        // Convert to DTO
+        List<ActivityResponse> activityResponses = activityPage.getContent().stream()
+            .map(this::mapToActivityResponse)
+            .collect(Collectors.toList());
+        
+        return new PageResponse<>(
+            activityResponses,
+            activityPage.getNumber(),
+            activityPage.getSize(),
+            activityPage.getTotalElements(),
+            activityPage.getTotalPages(),
+            activityPage.isLast(),
+            activityPage.isFirst(),
+            activityPage.isEmpty()
+        );
+    }
+    
+    /**
+     * Map Activity entity to ActivityResponse DTO
+     */
+    private ActivityResponse mapToActivityResponse(Activity activity) {
+        return ActivityResponse.builder()
+            .id(activity.getId())
+            .userId(activity.getUserId())
+            .type(activity.getType())
+            .duration(activity.getDuration())
+            .caloriesBurned(activity.getCaloriesBurned())
+            .startTime(activity.getStartTime())
+            .additionalMetrics(activity.getAdditionalMetrics())
+            .createdAt(activity.getCreatedAt())
+            .updatedAt(activity.getUpdatedAt())
+            .build();
+    }
+    
+    public WorkoutSession saveWorkoutSession(String userId, WorkoutSessionRequest request) {
+        int durationSeconds = (int) Duration.between(
+            request.getStartTime(), request.getEndTime()).getSeconds();
         Integer averageHeartRate = calculateAverageHeartRate(request.getHeartRateData());
         Integer maxHeartRate = calculateMaxHeartRate(request.getHeartRateData());
-        Integer caloriesBurned = calculateCaloriesBurned(request.getActivityType(),durationSeconds);
+        Integer caloriesBurned = calculateCaloriesBurned(
+            request.getActivityType(), durationSeconds);
+        
         WorkoutSession session = WorkoutSession.builder()
-                .userId(userId)
-                .activityType(request.getActivityType())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .durationSeconds(durationSeconds)
-                .distanceMeters(request.getDistanceMeters())
-                .averageHeartRate(averageHeartRate)
-                .maxHeartRate(maxHeartRate)
-                .caloriesBurned(caloriesBurned)
-                .route(request.getRoute())
-                .heartRateData(request.getHeartRateData())
-                .build();
+            .userId(userId)
+            .activityType(request.getActivityType())
+            .startTime(request.getStartTime())
+            .endTime(request.getEndTime())
+            .durationSeconds(durationSeconds)
+            .distanceMeters(request.getDistanceMeters())
+            .averageHeartRate(averageHeartRate)
+            .maxHeartRate(maxHeartRate)
+            .caloriesBurned(caloriesBurned)
+            .route(request.getRoute())
+            .heartRateData(request.getHeartRateData())
+            .build();
+        
         return workoutSessionRepository.save(session);
     }
 
     private Integer calculateCaloriesBurned(ActivityType activityType, int durationSeconds) {
         double caloriesPerMinute;
         switch (activityType) {
-            case RUNNING : caloriesPerMinute = 10.0;break;
-            case WALKING : caloriesPerMinute = 4.0; break;
-            case CYCLING : caloriesPerMinute = 8.0; break;
-            default : caloriesPerMinute = 5.0; break;
+            case RUNNING: caloriesPerMinute = 10.0; break;
+            case WALKING: caloriesPerMinute = 4.0; break;
+            case CYCLING: caloriesPerMinute = 8.0; break;
+            default: caloriesPerMinute = 5.0; break;
         }
-        return (int) (caloriesPerMinute*durationSeconds/60.0);
+        return (int) (caloriesPerMinute * durationSeconds / 60.0);
     }
 
     private Integer calculateMaxHeartRate(List<HeartRateReading> heartRateData) {
-        if(heartRateData == null || heartRateData.size() == 0){
+        if (heartRateData == null || heartRateData.isEmpty()) {
             return null;
         }
         return heartRateData.stream()
-                .mapToInt(HeartRateReading::getBpm)
-                .max()
-                .orElse(0);
+            .mapToInt(HeartRateReading::getBpm)
+            .max()
+            .orElse(0);
     }
 
     private Integer calculateAverageHeartRate(List<HeartRateReading> heartRateData) {
-        if(heartRateData == null || heartRateData.isEmpty()){
+        if (heartRateData == null || heartRateData.isEmpty()) {
             return null;
         }
         return (int) heartRateData.stream()
-                .mapToInt(HeartRateReading::getBpm)
-                .average()
-                .orElse(0.0);
+            .mapToInt(HeartRateReading::getBpm)
+            .average()
+            .orElse(0.0);
     }
+    
     public List<WorkoutSession> getWorkoutHistory(String userId) {
         return workoutSessionRepository.findByUserIdOrderByStartTimeDesc(userId);
     }
-    public Page<Activity> getActivityHistory(String userId, int page, int size){
-        Pageable pageable = PageRequest.of(page, size);
-        return activityRepository.findActivitiesByUserIdOrderByStartTimeDesc(userId, pageable);
-    }
+    
     public Activity saveActivity(Activity activity) {
         return activityRepository.save(activity);
     }
